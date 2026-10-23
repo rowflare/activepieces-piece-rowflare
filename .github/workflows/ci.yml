@@ -1,0 +1,55 @@
+# Builds the piece inside a pinned Activepieces checkout and runs the live tests against Rowflare 0.1.0.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+env:
+  # Activepieces commit the piece is built against. The CLI at tag 0.92.3 fails to type-check its own
+  # core utils when bundling, so a main commit that builds is pinned instead. Bump deliberately.
+  ACTIVEPIECES_REF: 6f4be340d7c4bef9fb6ff874ca72224e4933d3d2
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      rowflare:
+        image: rowflare/rowflare:0.1.0@sha256:9767136d308a6abe5a59ceb443729168c375cdad48f4c2db4bddaad0f192a1fc
+        ports:
+          - 8787:8787
+        env:
+          MODE: selfhost
+          ALLOW_SIGNUP: "false"
+          SECRET_KEY: ci-only-secret-key-not-used-for-anything-real
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: activepieces/activepieces
+          ref: ${{ env.ACTIVEPIECES_REF }}
+          path: activepieces
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Build and lint the piece
+        run: scripts/build-in-monorepo.sh activepieces
+
+      - name: Wait for Rowflare
+        run: |
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8787/api/config && exit 0; sleep 2; done
+          exit 1
+
+      - name: Live tests
+        run: |
+          eval "$(node test/setup-rowflare.mjs http://127.0.0.1:8787)"
+          node test/live.mjs

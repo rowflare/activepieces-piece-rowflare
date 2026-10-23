@@ -1,0 +1,73 @@
+# Publishes @rowflare/piece-rowflare to npm with a provenance statement when a version tag is pushed,
+# for example v0.1.0 (it must match "version" in piece/package.json).
+#
+# The piece is built inside an Activepieces checkout: the Activepieces CLI bundles the framework
+# libraries into the piece, and those libraries are not published to npm, so this is the only build.
+#
+# npm authentication, pick one:
+#   A. Trusted publishing (no secret): on npmjs.com open the package settings, Trusted Publisher,
+#      GitHub Actions, repository rowflare/activepieces-piece-rowflare, workflow publish.yml.
+#      The very first version of a new package cannot use it yet, so publish 0.1.0 with B.
+#   B. Token: create a granular access token with read and write access to @rowflare packages and
+#      store it as the repository secret NPM_TOKEN.
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  ACTIVEPIECES_REF: 6f4be340d7c4bef9fb6ff874ca72224e4933d3d2
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required for the npm provenance statement and for trusted publishing.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: activepieces/activepieces
+          ref: ${{ env.ACTIVEPIECES_REF }}
+          path: activepieces
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Check that the tag matches the piece version
+        run: |
+          version=$(node -p "require('./piece/package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match piece/package.json version $version" >&2
+            exit 1
+          fi
+
+      - name: Build and lint the piece
+        run: scripts/build-in-monorepo.sh activepieces
+
+      - name: Check the bundled manifest
+        run: |
+          node -e "
+            const p = require('./piece/dist/package.json');
+            const deps = Object.keys(p.dependencies || {});
+            if (deps.some((d) => d.startsWith('@activepieces/'))) throw new Error('bundle still depends on @activepieces packages: ' + deps);
+            if (!p.repository) throw new Error('repository is required for provenance');
+            console.log(p.name, p.version, 'dependencies:', deps);
+          "
+
+      - name: Publish
+        working-directory: piece/dist
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
