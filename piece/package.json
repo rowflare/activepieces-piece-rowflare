@@ -1,0 +1,38 @@
+{
+  "name": "@rowflare/piece-rowflare",
+  "version": "0.1.0",
+  "description": "Activepieces piece for Rowflare, the open-source Airtable alternative: create, update, find and delete records, and trigger on new records.",
+  "license": "MIT",
+  "author": "Rowflare <hello@rowflare.com>",
+  "homepage": "https://github.com/rowflare/activepieces-piece-rowflare#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rowflare/activepieces-piece-rowflare.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rowflare/activepieces-piece-rowflare/issues"
+  },
+  "keywords": [
+    "activepieces",
+    "activepieces-piece",
+    "rowflare",
+    "airtable-alternative",
+    "no-code"
+  ],
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json && cp package.json dist/",
+    "bundle": "node ../../../../dist/packages/cli/src/index.js pieces bundle",
+    "lint": "eslint 'src/**/*.ts'"
+  },
+  "dependencies": {
+    "@activepieces/pieces-common": "workspace:*",
+    "@activepieces/pieces-framework": "workspace:*",
+    "@activepieces/core-piece-types": "workspace:*",
+    "@activepieces/core-utils": "workspace:*"
+  },
+  "devDependencies": {
+    "tslib": "2.6.2"
+  }
+}
