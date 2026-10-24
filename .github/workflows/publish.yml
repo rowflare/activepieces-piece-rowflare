@@ -54,7 +54,7 @@ jobs:
           fi
 
       - name: Build and lint the piece
-        run: scripts/build-in-monorepo.sh activepieces
+        run: bash scripts/build-in-monorepo.sh activepieces
 
       - name: Check the bundled manifest
         run: |
